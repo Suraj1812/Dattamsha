@@ -185,7 +185,6 @@ class NudgeDispatchLog(Base):
     __tablename__ = "nudge_dispatch_logs"
     __table_args__ = (
         Index("ix_nudge_dispatch_logs_nudge_channel", "nudge_id", "channel"),
-        Index("ix_nudge_dispatch_logs_dispatched_at", "dispatched_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -219,7 +218,6 @@ class NudgeFeedback(Base):
 
 class IngestionRun(Base):
     __tablename__ = "ingestion_runs"
-    __table_args__ = (Index("ix_ingestion_runs_created_at", "created_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source: Mapped[str] = mapped_column(String(80), index=True)
@@ -258,7 +256,6 @@ class AuditEvent(Base):
     __table_args__ = (
         Index("ix_audit_events_action_created", "action", "created_at"),
         Index("ix_audit_events_outcome_created", "outcome", "created_at"),
-        Index("ix_audit_events_request_id", "request_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -302,7 +299,6 @@ class AuthRefreshToken(Base):
     __table_args__ = (
         UniqueConstraint("token_jti", name="uq_auth_refresh_tokens_jti"),
         Index("ix_auth_refresh_tokens_user_active", "user_id", "revoked_at"),
-        Index("ix_auth_refresh_tokens_expires_at", "expires_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
