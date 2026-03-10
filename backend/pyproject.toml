@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dattamsha-hr-intelligence"
 version = "0.1.0"
-description = "MVP HR analytics and intelligence platform"
+description = "HR analytics and intelligence platform"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

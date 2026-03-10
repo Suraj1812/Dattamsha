@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.entities import Employee, EmployeeRiskSnapshot, Nudge
+from app.services.compliance import is_consent_granted
 
 
 def _severity(score: float) -> str:
@@ -75,6 +76,13 @@ def generate_nudges(db: Session) -> list[Nudge]:
 
     created_or_updated: list[Nudge] = []
     for employee, snapshot in candidate_rows:
+        if settings.enforce_nudge_consent and not is_consent_granted(
+            db,
+            employee_id=employee.id,
+            consent_type="nudge_engine",
+        ):
+            continue
+
         if snapshot.attrition_risk >= settings.nudge_threshold_attrition:
             nudge = _create_or_update_nudge(
                 db=db,

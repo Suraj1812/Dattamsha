@@ -1,8 +1,8 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -13,10 +13,32 @@ class Settings(BaseSettings):
     nudge_threshold_burnout: float = 0.70
     policy_doc_path: str = "./policies/policies.md"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    allowed_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
-    trusted_hosts: list[str] = ["*"]
+    allowed_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
+    trusted_hosts: Annotated[list[str], NoDecode] = ["*"]
+    default_user_role: Literal["admin", "hr_admin", "manager", "analyst", "employee"] = "admin"
+    require_authentication: bool = False
+    api_key_role: Literal["admin", "hr_admin", "manager", "analyst", "employee"] = "admin"
     require_api_key: bool = False
     api_key: str = "change-me-in-production"
+    auth_jwt_secret: str = "change-this-auth-secret"
+    auth_access_token_minutes: int = 30
+    auth_refresh_token_days: int = 14
+    auth_jwt_issuer: str = "dattamsha-api"
+    auth_jwt_audience: str = "dattamsha-clients"
+    auth_allow_self_signup: bool = False
+    bootstrap_admin_email: str | None = "admin@dattamsha.local"
+    bootstrap_admin_full_name: str = "Platform Admin"
+    bootstrap_admin_password: str | None = "ChangeMe@123"
+    enforce_nudge_consent: bool = False
     rate_limit_per_minute: int = 120
     enable_docs: bool = True
     auto_create_schema: bool = True
@@ -48,6 +70,8 @@ class Settings(BaseSettings):
         "response_compression_min_size",
         "snapshot_refresh_batch_size",
         "nudge_generation_batch_size",
+        "auth_access_token_minutes",
+        "auth_refresh_token_days",
     )
     @classmethod
     def validate_positive_ints(cls, value: int) -> int:
@@ -67,10 +91,14 @@ class Settings(BaseSettings):
         if self.environment == "prod":
             if self.enable_docs:
                 raise ValueError("enable_docs must be false in prod")
-            if not self.require_api_key:
-                raise ValueError("require_api_key must be true in prod")
-            if self.api_key == "change-me-in-production":
-                raise ValueError("api_key must be changed in prod")
+            if not self.require_authentication:
+                raise ValueError("require_authentication must be true in prod")
+            if self.auth_jwt_secret == "change-this-auth-secret":
+                raise ValueError("auth_jwt_secret must be changed in prod")
+            if self.require_api_key and self.api_key == "change-me-in-production":
+                raise ValueError("api_key must be changed when require_api_key is true in prod")
+            if self.bootstrap_admin_password == "ChangeMe@123":
+                raise ValueError("bootstrap_admin_password must be changed in prod")
             if self.auto_create_schema:
                 raise ValueError("auto_create_schema must be false in prod")
         return self

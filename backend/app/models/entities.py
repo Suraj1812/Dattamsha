@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -36,6 +37,39 @@ class Employee(Base):
     manager: Mapped["Employee | None"] = relationship(
         "Employee", remote_side="Employee.id", backref="direct_reports"
     )
+    profile_details: Mapped["EmployeeProfileDetails | None"] = relationship(
+        "EmployeeProfileDetails",
+        back_populates="employee",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class EmployeeProfileDetails(Base):
+    __tablename__ = "employee_profile_details"
+    __table_args__ = (
+        Index("ix_employee_profile_details_updated_at", "updated_at"),
+    )
+
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), primary_key=True)
+    preferred_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    emergency_contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    emergency_contact_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    skills: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avatar_image_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    employee: Mapped[Employee] = relationship("Employee", back_populates="profile_details")
 
 
 class EngagementMetric(Base):
@@ -145,3 +179,138 @@ class Nudge(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     employee: Mapped[Employee] = relationship("Employee")
+
+
+class NudgeDispatchLog(Base):
+    __tablename__ = "nudge_dispatch_logs"
+    __table_args__ = (
+        Index("ix_nudge_dispatch_logs_nudge_channel", "nudge_id", "channel"),
+        Index("ix_nudge_dispatch_logs_dispatched_at", "dispatched_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nudge_id: Mapped[int] = mapped_column(ForeignKey("nudges.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(40), index=True)
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dispatched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    nudge: Mapped[Nudge] = relationship("Nudge")
+
+
+class NudgeFeedback(Base):
+    __tablename__ = "nudge_feedback"
+    __table_args__ = (
+        CheckConstraint("effectiveness_rating >= 1 AND effectiveness_rating <= 5", name="ck_nudge_effectiveness"),
+        Index("ix_nudge_feedback_nudge_created", "nudge_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nudge_id: Mapped[int] = mapped_column(ForeignKey("nudges.id"), index=True)
+    manager_identifier: Mapped[str] = mapped_column(String(120), index=True)
+    action_taken: Mapped[str] = mapped_column(Text)
+    effectiveness_rating: Mapped[int] = mapped_column(Integer)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    nudge: Mapped[Nudge] = relationship("Nudge")
+
+
+class IngestionRun(Base):
+    __tablename__ = "ingestion_runs"
+    __table_args__ = (Index("ix_ingestion_runs_created_at", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(80), index=True)
+    records_received: Mapped[int] = mapped_column(Integer, default=0)
+    employees_upserted: Mapped[int] = mapped_column(Integer, default=0)
+    metrics_upserted: Mapped[int] = mapped_column(Integer, default=0)
+    edges_upserted: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), index=True, default="success")
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class EmployeeConsent(Base):
+    __tablename__ = "employee_consents"
+    __table_args__ = (
+        CheckConstraint("status IN ('granted','revoked','expired')", name="ck_employee_consent_status"),
+        Index("ix_employee_consents_employee_type_created", "employee_id", "consent_type", "created_at"),
+        Index("ix_employee_consents_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), index=True)
+    consent_type: Mapped[str] = mapped_column(String(60), index=True)
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    source: Mapped[str] = mapped_column(String(80), default="system")
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    employee: Mapped[Employee] = relationship("Employee")
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        Index("ix_audit_events_action_created", "action", "created_at"),
+        Index("ix_audit_events_outcome_created", "outcome", "created_at"),
+        Index("ix_audit_events_request_id", "request_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    action: Mapped[str] = mapped_column(String(80), index=True)
+    resource: Mapped[str] = mapped_column(String(120), index=True)
+    outcome: Mapped[str] = mapped_column(String(20), index=True, default="success")
+    actor: Mapped[str] = mapped_column(String(120), default="system")
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AuthUser(Base):
+    __tablename__ = "auth_users"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('admin','hr_admin','manager','analyst','employee')",
+            name="ck_auth_users_role",
+        ),
+        Index("ix_auth_users_role_active", "role", "is_active"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(40), index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        index=True,
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+
+
+class AuthRefreshToken(Base):
+    __tablename__ = "auth_refresh_tokens"
+    __table_args__ = (
+        UniqueConstraint("token_jti", name="uq_auth_refresh_tokens_jti"),
+        Index("ix_auth_refresh_tokens_user_active", "user_id", "revoked_at"),
+        Index("ix_auth_refresh_tokens_expires_at", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("auth_users.id"), index=True)
+    token_jti: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    replaced_by_token_jti: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    user: Mapped[AuthUser] = relationship("AuthUser")

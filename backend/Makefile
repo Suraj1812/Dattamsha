@@ -4,8 +4,8 @@ run:
 run-prod:
 	uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 
-seed:
-	python -m app.scripts.seed_data
+refresh-snapshots:
+	python -m app.scripts.refresh_snapshots
 
 preflight:
 	python -m app.scripts.preflight

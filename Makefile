@@ -1,9 +1,6 @@
 backend-run:
 	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-backend-seed:
-	cd backend && python -m app.scripts.seed_data
-
 backend-test:
 	cd backend && python -m pytest -q
 

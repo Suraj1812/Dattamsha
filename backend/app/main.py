@@ -12,6 +12,8 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RateLimitMiddleware, RequestContextMiddleware, SecurityHeadersMiddleware
 from app.db.init_db import init_db
+from app.db.database import SessionLocal
+from app.services.auth import ensure_bootstrap_admin
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,9 @@ def create_app() -> FastAPI:
     async def lifespan(_: FastAPI):
         if settings.auto_create_schema:
             init_db()
+            with SessionLocal() as db:
+                ensure_bootstrap_admin(db, settings)
+                db.commit()
         else:
             logger.info("Auto schema creation is disabled; expected managed migrations.")
         yield

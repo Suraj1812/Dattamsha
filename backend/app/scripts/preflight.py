@@ -10,6 +10,7 @@ def main() -> None:
 
     print(f"Environment: {settings.environment}")
     print(f"Docs enabled: {settings.enable_docs}")
+    print(f"Authentication required: {settings.require_authentication}")
     print(f"API key required: {settings.require_api_key}")
 
     try:

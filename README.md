@@ -15,7 +15,6 @@ Dattamsha/
     app/
     airflow/
     dbt/
-    samples/
     policies/
     tests/
     pyproject.toml
@@ -39,11 +38,33 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 cp .env.example .env
-python -m app.scripts.seed_data
 uvicorn app.main:app --reload
 ```
 
 API: `http://127.0.0.1:8000/api/v1`
+
+Authentication (production-ready RBAC):
+- `GET /api/v1/auth/config`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/auth/users` (admin/hr_admin)
+- `POST /api/v1/auth/users` (admin/hr_admin)
+- `PATCH /api/v1/auth/users/{user_id}/role` (admin/hr_admin)
+- Default `.env.example` runs with `REQUIRE_AUTHENTICATION=true`.
+
+Default bootstrap admin (change immediately):
+- Email: `admin@dattamsha.local`
+- Password: `ChangeMe@123`
+
+Dynamic ingestion endpoint (production-style):
+`POST /api/v1/ingest/workforce`
+
+Compliance endpoints:
+- `POST /api/v1/employees/{employee_id}/consents`
+- `GET /api/v1/employees/{employee_id}/consents`
+- `GET /api/v1/compliance/audit-events`
 
 High-scale refresh endpoint:
 ```bash

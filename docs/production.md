@@ -8,6 +8,7 @@ Set these before deploying to production:
 - `ENABLE_DOCS=false`
 - `REQUIRE_API_KEY=true`
 - `API_KEY=<strong-random-secret>`
+- `ENFORCE_NUDGE_CONSENT=true` (recommended for regulated environments)
 - `AUTO_CREATE_SCHEMA=false`
 - `DATABASE_URL=postgresql+psycopg://...`
 - `TRUSTED_HOSTS=api.yourdomain.com`

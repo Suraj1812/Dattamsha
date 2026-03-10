@@ -8,6 +8,7 @@ from app.main import create_app
 @pytest.fixture()
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATION", "false")
     monkeypatch.setenv("REQUIRE_API_KEY", "false")
     monkeypatch.setenv("AUTO_CREATE_SCHEMA", "true")
     monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "500")
@@ -22,6 +23,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 @pytest.fixture()
 def secure_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("REQUIRE_AUTHENTICATION", "false")
     monkeypatch.setenv("REQUIRE_API_KEY", "true")
     monkeypatch.setenv("API_KEY", "test-api-key")
     monkeypatch.setenv("ENABLE_DOCS", "true")
