@@ -8,7 +8,9 @@ def main() -> None:
     with SessionLocal() as db:
         result = load_sample_data(db, source="sample")
     print(
-        f"Loaded source={result.source}, employees={result.employees_loaded}, metrics={result.metrics_loaded}"
+        "Loaded "
+        f"source={result.source}, employees={result.employees_loaded}, "
+        f"metrics={result.metrics_loaded}, snapshots={result.snapshots_refreshed or 0}"
     )
 
 

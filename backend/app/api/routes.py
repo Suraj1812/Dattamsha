@@ -21,6 +21,7 @@ from app.schemas.hr import (
     PolicyQueryResponse,
     ProfileResponse,
     RiskRecord,
+    SnapshotRefreshResponse,
 )
 from app.services.ingest import load_sample_data
 from app.services.insights import (
@@ -32,6 +33,7 @@ from app.services.insights import (
 from app.services.nudge_engine import generate_nudges
 from app.services.ona import run_ona
 from app.services.policy_assistant import answer_policy_question
+from app.services.risk_snapshot import refresh_risk_snapshots
 from app.services.simulation import run_hiring_simulation
 
 public_router = APIRouter()
@@ -85,10 +87,24 @@ def org_health(db: Session = Depends(get_db)) -> OrgHealthResponse:
 
 @protected_router.get("/insights/risks", response_model=list[RiskRecord])
 def risks(
-    limit: int = Query(default=20, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[RiskRecord]:
-    return list_risk_records(db, limit=limit)
+    return list_risk_records(db, limit=limit, offset=offset)
+
+
+@protected_router.post("/insights/refresh-risk-snapshots", response_model=SnapshotRefreshResponse)
+def refresh_snapshots_endpoint(
+    batch_size: int | None = Query(default=None, ge=1, le=50_000),
+    db: Session = Depends(get_db),
+) -> SnapshotRefreshResponse:
+    settings = get_settings()
+    processed = refresh_risk_snapshots(
+        db,
+        batch_size=batch_size or settings.snapshot_refresh_batch_size,
+    )
+    return SnapshotRefreshResponse(processed_employees=processed)
 
 
 @protected_router.get("/insights/headcount-by-department")
@@ -104,12 +120,14 @@ def generate_nudges_endpoint(db: Session = Depends(get_db)) -> list[Nudge]:
 @protected_router.get("/nudges", response_model=list[NudgeRead])
 def list_nudges(
     status: Literal["open", "resolved", "all"] = Query(default="open"),
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[Nudge]:
     query = db.query(Nudge)
     if status != "all":
         query = query.filter(Nudge.status == status)
-    return query.order_by(Nudge.created_at.desc()).all()
+    return query.order_by(Nudge.created_at.desc()).offset(offset).limit(limit).all()
 
 
 @protected_router.post("/nudges/{nudge_id}/resolve", response_model=NudgeRead)
@@ -140,8 +158,11 @@ def ona(payload: ONARequest) -> ONAResponse:
 
 
 @protected_router.get("/insights/ona-from-db", response_model=ONAResponse)
-def ona_from_db(db: Session = Depends(get_db)) -> ONAResponse:
-    edges = db.query(CollaborationEdge).all()
+def ona_from_db(
+    limit: int = Query(default=50_000, ge=1, le=200_000),
+    db: Session = Depends(get_db),
+) -> ONAResponse:
+    edges = db.query(CollaborationEdge).order_by(CollaborationEdge.id.desc()).limit(limit).all()
     payload = ONARequest(
         edges=[
             {

@@ -1,17 +1,23 @@
-run:
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+backend-run:
+	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-run-prod:
-	uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+backend-seed:
+	cd backend && python -m app.scripts.seed_data
 
-seed:
-	python -m app.scripts.seed_data
+backend-test:
+	cd backend && python -m pytest -q
 
-preflight:
-	python -m app.scripts.preflight
+backend-lint:
+	cd backend && python -m ruff check .
 
-test:
-	pytest -q
+frontend-dev:
+	cd frontend && npm run dev
 
-lint:
-	ruff check .
+frontend-test:
+	cd frontend && npm run test
+
+frontend-lint:
+	cd frontend && npm run lint
+
+frontend-build:
+	cd frontend && npm run build

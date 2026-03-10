@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -90,6 +91,32 @@ class PerformanceMetric(Base):
     employee: Mapped[Employee] = relationship("Employee")
 
 
+class EmployeeRiskSnapshot(Base):
+    __tablename__ = "employee_risk_snapshots"
+    __table_args__ = (
+        CheckConstraint("attrition_risk >= 0 AND attrition_risk <= 1", name="ck_snapshot_attrition"),
+        CheckConstraint("burnout_risk >= 0 AND burnout_risk <= 1", name="ck_snapshot_burnout"),
+        Index("ix_employee_risk_snapshots_attrition", "attrition_risk"),
+        Index("ix_employee_risk_snapshots_burnout", "burnout_risk"),
+        Index("ix_employee_risk_snapshots_snapshot_date", "snapshot_date"),
+    )
+
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), primary_key=True)
+    snapshot_date: Mapped[date] = mapped_column(Date)
+    engagement_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    overtime_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    meeting_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    after_hours_messages: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    performance_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    goal_completion_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    attrition_risk: Mapped[float] = mapped_column(Float)
+    burnout_risk: Mapped[float] = mapped_column(Float)
+    refreshed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    employee: Mapped[Employee] = relationship("Employee")
+
+
 class CollaborationEdge(Base):
     __tablename__ = "collaboration_edges"
     __table_args__ = (
@@ -106,6 +133,7 @@ class CollaborationEdge(Base):
 
 class Nudge(Base):
     __tablename__ = "nudges"
+    __table_args__ = (Index("ix_nudges_status_created_at", "status", "created_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), index=True)

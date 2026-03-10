@@ -37,12 +37,14 @@ The app validates these values and fails fast on startup if unsafe production de
 Run preflight before deployment:
 
 ```bash
+cd backend
 make preflight
 ```
 
 ## Production Run Example
 
 ```bash
+cd backend
 export ENVIRONMENT=prod
 export ENABLE_DOCS=false
 export REQUIRE_API_KEY=true

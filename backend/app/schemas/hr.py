@@ -110,3 +110,8 @@ class IngestResponse(BaseModel):
     source: str
     employees_loaded: int
     metrics_loaded: int
+    snapshots_refreshed: int | None = None
+
+
+class SnapshotRefreshResponse(BaseModel):
+    processed_employees: int

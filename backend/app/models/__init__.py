@@ -1,6 +1,7 @@
 from app.models.entities import (
     CollaborationEdge,
     Employee,
+    EmployeeRiskSnapshot,
     EngagementMetric,
     Nudge,
     PerformanceMetric,
@@ -10,6 +11,7 @@ from app.models.entities import (
 __all__ = [
     "CollaborationEdge",
     "Employee",
+    "EmployeeRiskSnapshot",
     "EngagementMetric",
     "Nudge",
     "PerformanceMetric",

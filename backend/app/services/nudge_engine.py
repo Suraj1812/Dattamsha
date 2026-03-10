@@ -1,10 +1,10 @@
 from datetime import datetime
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.entities import Employee, Nudge
-from app.services.insights import build_employee_profile
+from app.models.entities import Employee, EmployeeRiskSnapshot, Nudge
 
 
 def _severity(score: float) -> str:
@@ -54,40 +54,53 @@ def _create_or_update_nudge(
 
 def generate_nudges(db: Session) -> list[Nudge]:
     settings = get_settings()
-    employees = db.query(Employee).filter(Employee.employment_status == "active").all()
+    candidate_rows = (
+        db.query(Employee, EmployeeRiskSnapshot)
+        .join(EmployeeRiskSnapshot, EmployeeRiskSnapshot.employee_id == Employee.id)
+        .filter(
+            Employee.employment_status == "active",
+            or_(
+                EmployeeRiskSnapshot.attrition_risk >= settings.nudge_threshold_attrition,
+                EmployeeRiskSnapshot.burnout_risk >= settings.nudge_threshold_burnout,
+            ),
+        )
+        .order_by(
+            EmployeeRiskSnapshot.attrition_risk.desc(),
+            EmployeeRiskSnapshot.burnout_risk.desc(),
+            EmployeeRiskSnapshot.employee_id.asc(),
+        )
+        .limit(settings.nudge_generation_batch_size)
+        .all()
+    )
+
     created_or_updated: list[Nudge] = []
-
-    for employee in employees:
-        profile = build_employee_profile(db, employee.id)
-        if not profile:
-            continue
-
-        if profile.attrition_risk is not None and profile.attrition_risk >= settings.nudge_threshold_attrition:
+    for employee, snapshot in candidate_rows:
+        if snapshot.attrition_risk >= settings.nudge_threshold_attrition:
             nudge = _create_or_update_nudge(
                 db=db,
                 employee_id=employee.id,
                 nudge_type="attrition_risk",
-                severity=_severity(profile.attrition_risk),
+                severity=_severity(snapshot.attrition_risk),
                 message=(
                     f"{employee.full_name} has elevated attrition risk. Schedule a retention check-in within 7 days."
                 ),
                 evidence=(
-                    f"Attrition risk={profile.attrition_risk}, engagement={profile.engagement_score}, sentiment={profile.sentiment_score}."
+                    f"Attrition risk={snapshot.attrition_risk}, engagement={snapshot.engagement_score}, sentiment={snapshot.sentiment_score}."
                 ),
             )
             created_or_updated.append(nudge)
 
-        if profile.burnout_risk is not None and profile.burnout_risk >= settings.nudge_threshold_burnout:
+        if snapshot.burnout_risk >= settings.nudge_threshold_burnout:
             nudge = _create_or_update_nudge(
                 db=db,
                 employee_id=employee.id,
                 nudge_type="burnout_risk",
-                severity=_severity(profile.burnout_risk),
+                severity=_severity(snapshot.burnout_risk),
                 message=(
                     f"{employee.full_name} shows burnout risk. Recommend workload rebalance and manager 1:1."
                 ),
                 evidence=(
-                    f"Burnout risk={profile.burnout_risk}, overtime={profile.overtime_hours}, meetings={profile.meeting_hours}."
+                    f"Burnout risk={snapshot.burnout_risk}, overtime={snapshot.overtime_hours}, meetings={snapshot.meeting_hours}."
                 ),
             )
             created_or_updated.append(nudge)

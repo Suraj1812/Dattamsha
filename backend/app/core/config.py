@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     enable_docs: bool = True
     auto_create_schema: bool = True
     response_compression_min_size: int = 1024
+    snapshot_refresh_batch_size: int = 5000
+    nudge_generation_batch_size: int = 10000
     db_pool_size: int = 10
     db_max_overflow: int = 20
     db_pool_recycle_seconds: int = 1800
@@ -41,7 +43,12 @@ class Settings(BaseSettings):
             raise ValueError("thresholds must be between 0 and 1")
         return value
 
-    @field_validator("rate_limit_per_minute", "response_compression_min_size")
+    @field_validator(
+        "rate_limit_per_minute",
+        "response_compression_min_size",
+        "snapshot_refresh_batch_size",
+        "nudge_generation_batch_size",
+    )
     @classmethod
     def validate_positive_ints(cls, value: int) -> int:
         if value < 1:

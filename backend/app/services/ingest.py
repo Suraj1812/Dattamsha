@@ -7,6 +7,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.entities import (
     CollaborationEdge,
     Employee,
@@ -15,6 +16,7 @@ from app.models.entities import (
     WorkloadMetric,
 )
 from app.schemas.hr import IngestResponse
+from app.services.risk_snapshot import refresh_risk_snapshots
 
 
 SAMPLE_DIR = Path("samples")
@@ -28,25 +30,38 @@ def load_sample_data(db: Session, source: str = "sample") -> IngestResponse:
     if source != "sample":
         raise ValueError("Only 'sample' source is implemented in MVP")
 
-    employees_loaded = _load_employees(db, SAMPLE_DIR / "employees.csv")
+    settings = get_settings()
+    employees_loaded, employee_ids = _load_employees(db, SAMPLE_DIR / "employees.csv")
     metrics_loaded = 0
     metrics_loaded += _load_engagement(db, SAMPLE_DIR / "engagement_metrics.csv")
     metrics_loaded += _load_workload(db, SAMPLE_DIR / "workload_metrics.csv")
     metrics_loaded += _load_performance(db, SAMPLE_DIR / "performance_metrics.csv")
     metrics_loaded += _load_collaboration(db, SAMPLE_DIR / "collaboration_edges.csv")
+    snapshots_refreshed = refresh_risk_snapshots(
+        db,
+        batch_size=settings.snapshot_refresh_batch_size,
+        only_employee_ids=employee_ids,
+    )
 
     db.commit()
-    return IngestResponse(source=source, employees_loaded=employees_loaded, metrics_loaded=metrics_loaded)
+    return IngestResponse(
+        source=source,
+        employees_loaded=employees_loaded,
+        metrics_loaded=metrics_loaded,
+        snapshots_refreshed=snapshots_refreshed,
+    )
 
 
-def _load_employees(db: Session, path: Path) -> int:
+def _load_employees(db: Session, path: Path) -> tuple[int, list[int]]:
     if not path.exists():
-        return 0
+        return 0, []
 
     count = 0
+    touched_external_ids: set[str] = set()
     with path.open("r", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
+            touched_external_ids.add(row["external_id"])
             existing = db.query(Employee).filter(Employee.external_id == row["external_id"]).first()
             if existing:
                 existing.full_name = row["full_name"]
@@ -86,7 +101,11 @@ def _load_employees(db: Session, path: Path) -> int:
             if employee and manager:
                 employee.manager_id = manager.id
 
-    return count
+    employee_ids = [
+        employee_id
+        for (employee_id,) in db.query(Employee.id).filter(Employee.external_id.in_(touched_external_ids)).all()
+    ]
+    return count, employee_ids
 
 
 def _load_engagement(db: Session, path: Path) -> int:
