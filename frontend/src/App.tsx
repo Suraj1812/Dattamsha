@@ -421,7 +421,16 @@ export default function App() {
   const toastCounterRef = useRef(0);
   const notificationMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const pushToast = useCallback((type: ToastItem["type"], message: string, durationMs = 3200): void => {
+  const dismissToast = useCallback((toastId: number): void => {
+    const timerId = toastTimeoutRef.current.get(toastId);
+    if (timerId) {
+      window.clearTimeout(timerId);
+      toastTimeoutRef.current.delete(toastId);
+    }
+    setToasts((previous) => previous.filter((toast) => toast.id !== toastId));
+  }, []);
+
+  const pushToast = useCallback((type: ToastItem["type"], message: string, durationMs = 2000): void => {
     const normalizedMessage = message.trim();
     if (!normalizedMessage) {
       return;
@@ -435,12 +444,12 @@ export default function App() {
     toastDedupRef.current.set(dedupeKey, now);
     const id = ++toastCounterRef.current;
     setToasts((previous) => [...previous, { id, type, message: normalizedMessage }]);
+    const effectiveDurationMs = Math.max(400, Math.min(durationMs, 2000));
     const timerId = window.setTimeout(() => {
-      setToasts((previous) => previous.filter((toast) => toast.id !== id));
-      toastTimeoutRef.current.delete(id);
-    }, durationMs);
+      dismissToast(id);
+    }, effectiveDurationMs);
     toastTimeoutRef.current.set(id, timerId);
-  }, []);
+  }, [dismissToast]);
 
   useEffect(() => {
     const activeToastTimeouts = toastTimeoutRef.current;
@@ -549,7 +558,7 @@ export default function App() {
 
   useEffect(() => {
     if (data.health.data?.status === "ok" && !hasShownConnectionToast) {
-      pushToast("ok", "Backend connected successfully.", 2600);
+      pushToast("ok", "Backend connected successfully.");
       setHasShownConnectionToast(true);
     }
   }, [data.health.data?.status, hasShownConnectionToast, pushToast]);
@@ -745,6 +754,36 @@ export default function App() {
     retry: 1,
     staleTime: 10_000,
   });
+  const notificationFeedQuery = useQuery({
+    queryKey: ["notificationFeed", apiKey],
+    queryFn: () =>
+      api.nudges(
+        {
+          status: "open",
+          limit: 20,
+          offset: 0,
+          severity: "all",
+        },
+        apiKey,
+      ),
+    enabled: canReadNudges,
+    retry: 1,
+    staleTime: 10_000,
+  });
+  const nudgeOpenCountQuery = useQuery({
+    queryKey: ["nudgeOpenCount", apiKey],
+    queryFn: () =>
+      api.nudgeCount(
+        {
+          status: "open",
+          severity: "all",
+        },
+        apiKey,
+      ),
+    enabled: canReadNudges,
+    retry: 1,
+    staleTime: 10_000,
+  });
 
   const employeesQuery = useQuery({
     queryKey: ["employeesFiltered", apiKey, debouncedEmployeeSearch],
@@ -876,6 +915,8 @@ export default function App() {
     onSuccess: () => {
       pushToast("ok", "Nudges generated.");
       void queryClient.invalidateQueries({ queryKey: ["nudgesFiltered", apiKey] });
+      void queryClient.invalidateQueries({ queryKey: ["notificationFeed", apiKey] });
+      void queryClient.invalidateQueries({ queryKey: ["nudgeOpenCount", apiKey] });
       void queryClient.invalidateQueries({ queryKey: ["risksFiltered", apiKey] });
       void queryClient.invalidateQueries({ queryKey: ["orgHealth", apiKey] });
       void queryClient.invalidateQueries({ queryKey: ["managerTeam", apiKey, managerId] });
@@ -887,6 +928,8 @@ export default function App() {
     onSuccess: () => {
       pushToast("ok", "Nudge resolved.");
       void queryClient.invalidateQueries({ queryKey: ["nudgesFiltered", apiKey] });
+      void queryClient.invalidateQueries({ queryKey: ["notificationFeed", apiKey] });
+      void queryClient.invalidateQueries({ queryKey: ["nudgeOpenCount", apiKey] });
       void queryClient.invalidateQueries({ queryKey: ["managerTeam", apiKey, managerId] });
     },
   });
@@ -1067,7 +1110,7 @@ export default function App() {
   const filteredCentralIds = onaQuery.data?.most_central_employee_ids ?? [];
   const filteredIsolatedIds = onaQuery.data?.most_isolated_employee_ids ?? [];
   const notificationItems = useMemo(() => {
-    return filteredNudges
+    return (notificationFeedQuery.data ?? [])
       .slice()
       .sort((first, second) => {
         const firstTime = Date.parse(first.created_at);
@@ -1078,12 +1121,13 @@ export default function App() {
         return secondTime - firstTime;
       })
       .slice(0, 8);
-  }, [filteredNudges]);
-  const unreadNotificationCount = filteredNudges.length;
+  }, [notificationFeedQuery.data]);
+  const unreadNotificationCount = nudgeOpenCountQuery.data?.total ?? notificationFeedQuery.data?.length ?? 0;
   const notificationAriaLabel =
     unreadNotificationCount > 0
       ? `Notifications (${toCompactNumber(unreadNotificationCount)} open)`
       : "Notifications";
+  const notificationBadgeLabel = unreadNotificationCount > 0 ? toCompactNumber(unreadNotificationCount) : "0";
 
   const loadingInitial = data.orgHealth.isLoading || risksQuery.isLoading || nudgesQuery.isLoading;
   const hasWorkforceData = !canReadInsights || (data.orgHealth.data?.active_headcount ?? 0) > 0;
@@ -1099,6 +1143,8 @@ export default function App() {
     ingestionRunsQuery.error,
     employeesQuery.error,
     onaQuery.error,
+    notificationFeedQuery.error,
+    nudgeOpenCountQuery.error,
     planningFinance.error,
     workforceFinance.error,
     employeeProfile.error,
@@ -1113,12 +1159,12 @@ export default function App() {
     if (!hasApiError) {
       return;
     }
-    pushToast("error", errorMessage(hasApiError), 4200);
+    pushToast("error", errorMessage(hasApiError));
   }, [hasApiError, pushToast]);
 
   useEffect(() => {
     if (!loadingInitial && !hasApiError && !hasWorkforceData) {
-      pushToast("error", "No live workforce records found. Send dynamic data via /api/v1/ingest/workforce.", 4200);
+      pushToast("error", "No live workforce records found. Send dynamic data via /api/v1/ingest/workforce.");
     }
   }, [loadingInitial, hasApiError, hasWorkforceData, pushToast]);
 
@@ -1258,7 +1304,12 @@ export default function App() {
   const toastStack = toasts.length ? (
     <div className="toast-area" role="status" aria-live="polite">
       {toasts.map((toast) => (
-        <StatusBanner key={toast.id} type={toast.type} message={toast.message} />
+        <StatusBanner
+          key={toast.id}
+          type={toast.type}
+          message={toast.message}
+          onClose={() => dismissToast(toast.id)}
+        />
       ))}
     </div>
   ) : null;
@@ -1487,9 +1538,7 @@ export default function App() {
                   >
                     <Bell size={16} />
                     {unreadNotificationCount > 0 ? (
-                      <span className="notification-badge">
-                        {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                      </span>
+                      <span className="notification-badge">{notificationBadgeLabel}</span>
                     ) : null}
                   </button>
                   {showNotifications ? (
@@ -1503,21 +1552,24 @@ export default function App() {
                           className="btn secondary btn-sm"
                           type="button"
                           onClick={() => {
-                            void nudgesQuery.refetch();
+                            void notificationFeedQuery.refetch();
+                            void nudgeOpenCountQuery.refetch();
                           }}
-                          disabled={nudgesQuery.isFetching}
+                          disabled={notificationFeedQuery.isFetching || nudgeOpenCountQuery.isFetching}
                         >
-                          {nudgesQuery.isFetching ? "Refreshing..." : "Refresh"}
+                          {notificationFeedQuery.isFetching || nudgeOpenCountQuery.isFetching
+                            ? "Refreshing..."
+                            : "Refresh"}
                         </button>
                       </header>
                       <div className="notification-list">
-                        {nudgesQuery.isLoading ? (
+                        {notificationFeedQuery.isLoading ? (
                           <p className="notification-empty">Loading notifications...</p>
                         ) : null}
-                        {!nudgesQuery.isLoading && !notificationItems.length ? (
+                        {!notificationFeedQuery.isLoading && !notificationItems.length ? (
                           <p className="notification-empty">No open alerts right now.</p>
                         ) : null}
-                        {!nudgesQuery.isLoading
+                        {!notificationFeedQuery.isLoading
                           ? notificationItems.map((item) => (
                               <button
                                 key={item.id}

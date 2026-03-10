@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import String, cast, text
+from sqlalchemy import String, cast, func, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -47,6 +47,7 @@ from app.schemas.hr import (
     NudgeDispatchLogRead,
     NudgeDispatchRequest,
     NudgeDispatchResponse,
+    NudgeCountResponse,
     NudgeFeedbackCreate,
     NudgeFeedbackRead,
     NudgeRead,
@@ -785,6 +786,44 @@ def generate_nudges_endpoint(db: Session = Depends(get_db)) -> list[Nudge]:
     )
     db.commit()
     return nudges
+
+
+@protected_router.get(
+    "/nudges/count",
+    response_model=NudgeCountResponse,
+    dependencies=[Depends(require_permissions("nudges.read"))],
+)
+def count_nudges(
+    status: Literal["open", "resolved", "all"] = Query(default="open"),
+    search: str | None = Query(default=None, min_length=1, max_length=120),
+    severity: Literal["all", "high", "medium", "low"] = Query(default="all"),
+    nudge_type: str | None = Query(default=None, min_length=1, max_length=60),
+    employee_id: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+) -> NudgeCountResponse:
+    query = db.query(func.count(Nudge.id)).join(Employee, Employee.id == Nudge.employee_id)
+    if status != "all":
+        query = query.filter(Nudge.status == status)
+    if severity != "all":
+        query = query.filter(Nudge.severity == severity)
+    if nudge_type:
+        query = query.filter(Nudge.nudge_type == nudge_type)
+    if employee_id is not None:
+        query = query.filter(Nudge.employee_id == employee_id)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            (cast(Nudge.id, String).ilike(pattern))
+            | (cast(Nudge.employee_id, String).ilike(pattern))
+            | (Nudge.message.ilike(pattern))
+            | (Nudge.evidence.ilike(pattern))
+            | (Nudge.nudge_type.ilike(pattern))
+            | (Nudge.severity.ilike(pattern))
+            | (Employee.full_name.ilike(pattern))
+            | (Employee.department.ilike(pattern))
+        )
+    total = query.scalar() or 0
+    return NudgeCountResponse(total=int(total))
 
 
 @protected_router.get(

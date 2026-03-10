@@ -68,8 +68,9 @@ button:focus-visible {
 }
 
 .app-main {
+  --main-pad-x: 1rem;
   margin-left: var(--sidebar-width);
-  padding: 0.86rem 1rem 1.35rem;
+  padding: 0.86rem var(--main-pad-x) 1.35rem;
 }
 
 .topbar {
@@ -85,13 +86,18 @@ button:focus-visible {
 .app-topbar {
   background: #ffffff;
   border: 1px solid #dce4ea;
-  border-radius: 14px;
+  border-radius: 0;
   padding: 0.78rem 0.92rem;
   box-shadow: none;
   overflow: visible;
   position: sticky;
-  top: 0.62rem;
-  z-index: 35;
+  top: 0;
+  z-index: 55;
+  width: calc(100% + (var(--main-pad-x) * 2));
+  margin-inline: calc(var(--main-pad-x) * -1);
+  padding-inline: calc(var(--main-pad-x) + 0.92rem);
+  border-left: none;
+  border-right: none;
 }
 
 .app-topbar::after {
@@ -257,6 +263,7 @@ button:focus-visible {
   background: #ffffff;
   box-shadow: 0 18px 32px rgba(14, 36, 56, 0.14);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   z-index: 52;
 }
 
@@ -292,9 +299,12 @@ button:focus-visible {
 
 .notification-list {
   overflow: auto;
+  min-height: 0;
   padding: 0.36rem;
   display: grid;
   gap: 0.42rem;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .notification-item {
@@ -593,6 +603,7 @@ button:focus-visible {
 
 .toast-area .status-banner {
   box-shadow: 0 14px 28px rgba(12, 39, 59, 0.16);
+  pointer-events: auto;
 }
 
 .status-banner {
@@ -601,6 +612,36 @@ button:focus-visible {
   font-size: 0.9rem;
   font-weight: 600;
   animation: rise-in 220ms ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.72rem;
+}
+
+.status-banner-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.status-banner-close {
+  border: 0;
+  background: transparent;
+  color: currentColor;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.status-banner-close:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 .status-ok {
@@ -1607,8 +1648,9 @@ button:focus-visible {
   }
 
   .app-main {
+    --main-pad-x: 0.82rem;
     margin-left: 0;
-    padding: 0.78rem 0.82rem 1.2rem;
+    padding: 0.78rem var(--main-pad-x) 1.2rem;
   }
 
   .app-sidebar {
@@ -1698,7 +1740,8 @@ button:focus-visible {
 
 @media (max-width: 760px) {
   .app-main {
-    padding: 0.68rem 0.62rem 1.2rem;
+    --main-pad-x: 0.62rem;
+    padding: 0.68rem var(--main-pad-x) 1.2rem;
   }
 
   .app-sidebar {

@@ -188,6 +188,10 @@ class NudgeRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class NudgeCountResponse(BaseModel):
+    total: int
+
+
 class NudgeDispatchRequest(BaseModel):
     channel: Literal["console", "webhook"]
     webhook_url: str | None = None

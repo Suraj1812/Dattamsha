@@ -175,6 +175,10 @@ export type Nudge = {
   created_at: string;
 };
 
+export type NudgeCount = {
+  total: number;
+};
+
 export type NudgeDispatchRequest = {
   channel: "console" | "webhook";
   webhook_url?: string;

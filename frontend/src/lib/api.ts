@@ -24,6 +24,7 @@ import type {
   IngestionRun,
   ManagerTeamOverview,
   Nudge,
+  NudgeCount,
   NudgeDispatchRequest,
   NudgeDispatchResponse,
   NudgeFeedback,
@@ -364,6 +365,27 @@ export const api = {
         status: params.status ?? "open",
         limit: params.limit ?? 100,
         offset: params.offset ?? 0,
+        search: params.search,
+        severity: params.severity ?? "all",
+        nudge_type: params.nudgeType,
+        employee_id: params.employeeId,
+      })}`,
+      {},
+      apiKey,
+    ),
+  nudgeCount: (
+    params: {
+      status?: "open" | "resolved" | "all";
+      search?: string;
+      severity?: "all" | "high" | "medium" | "low";
+      nudgeType?: string;
+      employeeId?: number;
+    } = {},
+    apiKey?: string,
+  ) =>
+    request<NudgeCount>(
+      `/nudges/count${buildQuery({
+        status: params.status ?? "open",
         search: params.search,
         severity: params.severity ?? "all",
         nudge_type: params.nudgeType,
