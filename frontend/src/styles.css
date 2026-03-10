@@ -63,8 +63,13 @@ button:focus-visible {
 
 .app-shell {
   --sidebar-width: 256px;
+  --app-topbar-height: 74px;
   min-height: 100vh;
   background: #f6f8fa;
+}
+
+.dashboard-shell {
+  padding-top: var(--app-topbar-height);
 }
 
 .app-main {
@@ -87,17 +92,19 @@ button:focus-visible {
   background: #ffffff;
   border: 1px solid #dce4ea;
   border-radius: 0;
-  padding: 0.78rem 0.92rem;
+  padding: 0.78rem 1rem;
   box-shadow: none;
   overflow: visible;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 55;
-  width: calc(100% + (var(--main-pad-x) * 2));
-  margin-inline: calc(var(--main-pad-x) * -1);
-  padding-inline: calc(var(--main-pad-x) + 0.92rem);
+  left: 0;
+  right: 0;
+  z-index: 72;
+  width: 100%;
+  margin: 0;
   border-left: none;
   border-right: none;
+  border-top: none;
 }
 
 .app-topbar::after {
@@ -128,6 +135,32 @@ button:focus-visible {
   justify-content: flex-end;
 }
 
+.navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62rem;
+  min-height: 42px;
+}
+
+.navbar-brand-copy {
+  display: grid;
+  gap: 0.04rem;
+}
+
+.navbar-brand-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #1e3b52;
+  line-height: 1.2;
+}
+
+.navbar-brand-copy small {
+  color: #657a8f;
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
 .brand-eyebrow {
   font-size: 0.74rem;
   font-weight: 800;
@@ -155,6 +188,7 @@ button:focus-visible {
   flex-wrap: wrap;
   gap: 0.55rem;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .profile-chip {
@@ -735,7 +769,9 @@ button:focus-visible {
 
 .app-sidebar {
   position: fixed;
-  inset: 0 auto 0 0;
+  top: var(--app-topbar-height);
+  left: 0;
+  bottom: 0;
   width: var(--sidebar-width);
   background: #ffffff;
   border-right: 1px solid #dde5eb;
@@ -1645,6 +1681,7 @@ button:focus-visible {
 @media (max-width: 1120px) {
   .app-shell {
     --sidebar-width: 0px;
+    --app-topbar-height: 150px;
   }
 
   .app-main {
@@ -1739,6 +1776,10 @@ button:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .app-shell {
+    --app-topbar-height: 182px;
+  }
+
   .app-main {
     --main-pad-x: 0.62rem;
     padding: 0.68rem var(--main-pad-x) 1.2rem;
@@ -1761,6 +1802,10 @@ button:focus-visible {
   }
 
   .topbar-actions {
+    width: 100%;
+  }
+
+  .navbar-brand {
     width: 100%;
   }
 

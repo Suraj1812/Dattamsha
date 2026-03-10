@@ -1423,15 +1423,8 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell ${showFilters ? "filters-visible" : "filters-hidden"}`}>
+    <div className={`app-shell dashboard-shell ${showFilters ? "filters-visible" : "filters-hidden"}`}>
       <aside className="workspace-sidebar app-sidebar">
-        <div className="sidebar-brand">
-          <span className="sidebar-logo">DD</span>
-          <div className="sidebar-brand-copy">
-            <p className="sidebar-brand-title">Dattamsha</p>
-            <small>Workforce Intelligence</small>
-          </div>
-        </div>
         <nav className="main-tabs app-nav" aria-label="Dashboard sections">
           {availableTabs.map((item) => {
             const Icon = item.icon;
@@ -1495,11 +1488,17 @@ export default function App() {
         transition={{ duration: 0.28, ease: "easeOut" }}
       >
         <header className="topbar app-topbar">
-          <div className="topbar-row topbar-row-controls">
+          <div className="topbar-row">
+            <div className="navbar-brand">
+              <span className="sidebar-logo">DD</span>
+              <div className="navbar-brand-copy">
+                <p className="navbar-brand-title">Dattamsha</p>
+                <small>Workforce Intelligence</small>
+              </div>
+            </div>
             <div className="topbar-actions">
             {!isAuthRequired ? (
               <label className="role-switch">
-                Active Role
                 <select
                   value={userRole}
                   onChange={(event) => setUserRole(event.target.value as UserRole)}
