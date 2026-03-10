@@ -1,0 +1,12 @@
+dattamsha_hr_transform:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: postgres
+      password: postgres
+      port: 5432
+      dbname: dattamsha
+      schema: analytics
+      threads: 4

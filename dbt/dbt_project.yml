@@ -1,0 +1,14 @@
+name: dattamsha_hr_transform
+version: 1.0.0
+config-version: 2
+
+profile: dattamsha_hr_transform
+
+model-paths: ["models"]
+
+models:
+  dattamsha_hr_transform:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
